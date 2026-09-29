@@ -59,37 +59,61 @@ export async function GET(request: NextRequest) {
   };
 
   // Run Python recommendation engine
-  const pythonResult = await new Promise<any>((resolve, reject) => {
-    const scriptPath = path.join(process.cwd(), 'scripts', 'recommend.py');
-    const pythonProcess = spawn('python', [scriptPath]);
-    
-    let dataString = '';
-    let errorString = '';
+  let pythonResult: any;
 
-    pythonProcess.stdout.on('data', (data) => {
-      dataString += data.toString();
-    });
-
-    pythonProcess.stderr.on('data', (data) => {
-      errorString += data.toString();
-    });
-
-    pythonProcess.on('close', (code) => {
-      if (code !== 0) {
-        console.error("Python script error:", errorString);
-        return reject(new Error('Python recommendation script failed'));
+  try {
+    if (process.env.VERCEL) {
+      // In Vercel production, call the Python serverless function endpoint
+      const protocol = process.env.VERCEL_URL?.includes('localhost') ? 'http' : 'https';
+      const apiUrl = `${protocol}://${process.env.VERCEL_URL}/api/recommendEngine`;
+      
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!res.ok) {
+        throw new Error(`Vercel Python API failed: ${await res.text()}`);
       }
-      try {
-        resolve(JSON.parse(dataString));
-      } catch (err) {
-        reject(new Error('Failed to parse Python script output'));
-      }
-    });
+      pythonResult = await res.json();
+    } else {
+      // Local development fallback
+      pythonResult = await new Promise<any>((resolve, reject) => {
+        const scriptPath = path.join(process.cwd(), 'scripts', 'recommend.py');
+        const pythonProcess = spawn('python', [scriptPath]);
+        
+        let dataString = '';
+        let errorString = '';
 
-    // Send data to python stdin
-    pythonProcess.stdin.write(JSON.stringify(payload));
-    pythonProcess.stdin.end();
-  });
+        pythonProcess.stdout.on('data', (data) => {
+          dataString += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+          errorString += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+          if (code !== 0) {
+            console.error("Python script error:", errorString);
+            return reject(new Error('Python recommendation script failed'));
+          }
+          try {
+            resolve(JSON.parse(dataString));
+          } catch (err) {
+            reject(new Error('Failed to parse Python script output'));
+          }
+        });
+
+        pythonProcess.stdin.write(JSON.stringify(payload));
+        pythonProcess.stdin.end();
+      });
+    }
+  } catch (error: any) {
+    console.error("Recommendation Engine Error:", error);
+    return NextResponse.json({ error: error.message || 'Recommendation failed' }, { status: 500 });
+  }
 
   if (pythonResult.error) {
     return NextResponse.json({ error: pythonResult.error }, { status: 500 });
