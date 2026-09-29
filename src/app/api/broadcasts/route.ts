@@ -5,10 +5,13 @@ import { z } from 'zod';
 import { sendBroadcastNotification } from '@/lib/email';
 
 const broadcastSchema = z.object({
-  courseId: z.string().min(1),
+  courseId: z.string().optional(),
+  classroomId: z.string().optional(),
   title: z.string().min(1),
   content: z.string().min(1),
   type: z.enum(['ANNOUNCEMENT', 'MATERIAL', 'ASSIGNMENT']).default('ANNOUNCEMENT'),
+}).refine(data => data.courseId || data.classroomId, {
+  message: "Either courseId or classroomId must be provided"
 });
 
 export async function POST(request: NextRequest) {
@@ -35,48 +38,46 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Verify faculty owns the course
-  const course = await prisma.course.findUnique({
-    where: { id: parsed.data.courseId },
-  });
+  // Verify faculty owns the course or classroom
+  let targetName = 'Target';
+  let recipientEmails: string[] = [];
 
-  if (!course) {
-    return NextResponse.json({ error: 'Course not found' }, { status: 404 });
-  }
-
-  if (user.role !== 'ADMIN' && course.facultyId !== user.id) {
-    return NextResponse.json(
-      { error: 'You do not teach this course' },
-      { status: 403 }
-    );
+  if (parsed.data.classroomId) {
+    const classroom = await prisma.classroom.findUnique({
+      where: { id: parsed.data.classroomId },
+      include: { members: { include: { user: { select: { email: true } } } } }
+    });
+    if (!classroom) return NextResponse.json({ error: 'Classroom not found' }, { status: 404 });
+    if (user.role !== 'ADMIN' && classroom.facultyId !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    
+    targetName = classroom.name;
+    recipientEmails = classroom.members.map(m => m.user.email).filter((e): e is string => !!e);
+  } else if (parsed.data.courseId) {
+    const course = await prisma.course.findUnique({
+      where: { id: parsed.data.courseId },
+      include: { enrollments: { where: { status: 'ACTIVE' }, include: { user: { select: { email: true } } } } }
+    });
+    if (!course) return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+    if (user.role !== 'ADMIN' && course.facultyId !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    
+    targetName = course.title;
+    recipientEmails = course.enrollments.map(e => e.user.email).filter((e): e is string => !!e);
   }
 
   const broadcast = await prisma.broadcast.create({
     data: {
-      ...parsed.data,
+      courseId: parsed.data.courseId,
+      classroomId: parsed.data.classroomId,
+      title: parsed.data.title,
+      content: parsed.data.content,
+      type: parsed.data.type,
       facultyId: user.id,
     },
-    include: {
-      faculty: { select: { name: true } },
-      course: { select: { title: true } },
-    },
   });
-
-  // Send email notifications to enrolled students
-  const enrollments = await prisma.enrollment.findMany({
-    where: { courseId: parsed.data.courseId, status: 'ACTIVE' },
-    include: {
-      user: { select: { email: true } },
-    },
-  });
-
-  const recipientEmails = enrollments
-    .map((e) => e.user.email)
-    .filter((email): email is string => !!email);
 
   await sendBroadcastNotification({
     recipientEmails,
-    courseName: course.title,
+    courseName: targetName,
     broadcastTitle: parsed.data.title,
     broadcastContent: parsed.data.content,
     broadcastType: parsed.data.type,
@@ -94,16 +95,19 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const courseId = searchParams.get('courseId');
+  const classroomId = searchParams.get('classroomId');
 
-  if (!courseId) {
+  if (!courseId && !classroomId) {
     return NextResponse.json(
-      { error: 'courseId required' },
+      { error: 'courseId or classroomId required' },
       { status: 400 }
     );
   }
 
+  const where = courseId ? { courseId } : { classroomId };
+
   const broadcasts = await prisma.broadcast.findMany({
-    where: { courseId },
+    where,
     include: {
       faculty: { select: { name: true, image: true } },
     },

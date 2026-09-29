@@ -4,32 +4,31 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { BookOpen, Users, Megaphone, PlusCircle } from 'lucide-react';
 
-interface Course {
+interface Classroom {
   id: string;
-  title: string;
-  category: string;
-  published: boolean;
-  _count: { enrollments: number; broadcasts: number };
+  name: string;
+  description: string;
+  joinCode: string;
+  _count: { members: number; courses: number; broadcasts: number };
 }
 
 export default function FacultyDashboard() {
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      const res = await fetch('/api/courses?limit=100');
+      const res = await fetch('/api/classrooms');
       if (res.ok) {
-        const data = await res.json();
-        // Faculty sees their own courses via the general endpoint
-        setCourses(data.courses);
+        setClassrooms(await res.json());
       }
       setLoading(false);
     }
     load();
   }, []);
 
-  const totalStudents = courses.reduce((sum, c) => sum + c._count.enrollments, 0);
+  const totalStudents = classrooms.reduce((sum, c) => sum + c._count.members, 0);
+  const totalBroadcasts = classrooms.reduce((sum, c) => sum + c._count.broadcasts, 0);
 
   if (loading) {
     return (
@@ -51,20 +50,25 @@ export default function FacultyDashboard() {
       <div className="flex items-center justify-between" style={{ marginBottom: '32px' }}>
         <div>
           <h1 className="page-title">Faculty Dashboard</h1>
-          <p className="page-subtitle">Manage your courses and communicate with students</p>
+          <p className="page-subtitle">Manage your classrooms and communicate with students</p>
         </div>
-        <Link href="/faculty/courses/new" className="btn btn-primary">
-          <PlusCircle size={16} /> Create Course
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/faculty/courses/new" className="btn btn-secondary">
+            <BookOpen size={16} /> New Course
+          </Link>
+          <Link href="/faculty/classrooms/new" className="btn btn-primary">
+            <PlusCircle size={16} /> Create Classroom
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-3" style={{ marginBottom: '40px' }}>
         <div className="stat-card">
           <div className="flex items-center gap-3">
-            <div style={{ color: 'var(--accent-violet)' }}><BookOpen size={20} /></div>
+            <div style={{ color: 'var(--accent-violet)' }}><Users size={20} /></div>
             <div>
-              <div className="stat-value">{courses.length}</div>
-              <div className="stat-label">Courses</div>
+              <div className="stat-value">{classrooms.length}</div>
+              <div className="stat-label">Classrooms</div>
             </div>
           </div>
         </div>
@@ -81,44 +85,43 @@ export default function FacultyDashboard() {
           <div className="flex items-center gap-3">
             <div style={{ color: 'var(--accent-amber)' }}><Megaphone size={20} /></div>
             <div>
-              <div className="stat-value">
-                {courses.reduce((sum, c) => sum + c._count.broadcasts, 0)}
-              </div>
+              <div className="stat-value">{totalBroadcasts}</div>
               <div className="stat-label">Broadcasts sent</div>
             </div>
           </div>
         </div>
       </div>
 
-      <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '20px' }}>Your Courses</h2>
+      <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '20px' }}>Your Classrooms</h2>
 
-      {courses.length === 0 ? (
+      {classrooms.length === 0 ? (
         <div className="empty-state">
-          <h3>No courses yet</h3>
-          <p>Create your first course to get started.</p>
-          <Link href="/faculty/courses/new" className="btn btn-primary" style={{ marginTop: '16px' }}>
-            Create course
+          <h3>No classrooms yet</h3>
+          <p>Create your first classroom to invite students.</p>
+          <Link href="/faculty/classrooms/new" className="btn btn-primary" style={{ marginTop: '16px' }}>
+            Create Classroom
           </Link>
         </div>
       ) : (
         <div className="grid grid-3">
-          {courses.map((course) => (
-            <Link key={course.id} href={`/faculty/courses/${course.id}`}>
+          {classrooms.map((c) => (
+            <Link key={c.id} href={`/faculty/classrooms/${c.id}`}>
               <div className="course-card animate-fadeIn">
-                <div className="course-card-header">
-                  <span className="course-card-category">{course.category}</span>
+                <div className="course-card-header" style={{ height: '100px' }}>
+                  <span className="course-card-category">Classroom</span>
                 </div>
                 <div className="course-card-body">
-                  <h3 className="course-card-title">{course.title}</h3>
-                  <div className="flex items-center gap-2" style={{ marginTop: '8px' }}>
-                    <span className={`badge ${course.published ? 'badge-green' : 'badge-amber'}`}>
-                      {course.published ? 'Published' : 'Draft'}
+                  <h3 className="course-card-title">{c.name}</h3>
+                  <p className="course-card-desc" style={{ marginTop: '4px' }}>{c.description}</p>
+                  <div className="flex items-center gap-2" style={{ marginTop: '12px' }}>
+                    <span className="badge badge-violet" style={{ cursor: 'copy' }} title="Copy Code" onClick={(e) => { e.preventDefault(); navigator.clipboard.writeText(c.joinCode); alert('Code copied!'); }}>
+                      Code: {c.joinCode}
                     </span>
                   </div>
                 </div>
                 <div className="course-card-footer">
-                  <span>{course._count.enrollments} students</span>
-                  <span>{course._count.broadcasts} broadcasts</span>
+                  <span>{c._count.members} students</span>
+                  <span>{c._count.courses} courses</span>
                 </div>
               </div>
             </Link>

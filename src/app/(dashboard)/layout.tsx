@@ -9,6 +9,8 @@ import {
   Settings, LogOut, PlusCircle, Map
 } from 'lucide-react';
 
+import { ThemeToggle } from '@/components/ThemeToggle';
+
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: session } = useSession();
@@ -18,13 +20,14 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const studentLinks = [
     { href: '/student', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/student/courses', label: 'Course Catalog', icon: BookOpen },
-    { href: '/student/enrolled', label: 'My Courses', icon: GraduationCap },
+    { href: '/student/enrolled', label: 'My Classrooms', icon: Users },
     { href: '/student/learning-paths', label: 'Learning Paths', icon: Map },
   ];
 
   const facultyLinks = [
     { href: '/faculty', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/faculty/courses', label: 'My Courses', icon: BookOpen },
+    { href: '/faculty/classrooms/new', label: 'Create Classroom', icon: PlusCircle },
     { href: '/faculty/courses/new', label: 'Create Course', icon: PlusCircle },
   ];
 
@@ -48,6 +51,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           <span className="badge badge-violet" style={{ textTransform: 'capitalize' }}>
             {role?.toLowerCase()}
           </span>
+          <ThemeToggle />
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => signOut({ callbackUrl: '/' })}

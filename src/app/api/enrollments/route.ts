@@ -8,23 +8,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { courseId, action } = await request.json();
+  const { courseId, joinCode, action } = await request.json();
 
-  if (!courseId) {
-    return NextResponse.json({ error: 'courseId required' }, { status: 400 });
+  if (!courseId && !joinCode) {
+    return NextResponse.json({ error: 'courseId or joinCode required' }, { status: 400 });
   }
 
-  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  let course;
+  if (joinCode) {
+    course = await prisma.course.findUnique({ where: { joinCode } });
+  } else {
+    course = await prisma.course.findUnique({ where: { id: courseId } });
+  }
+
   if (!course) {
-    return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+    return NextResponse.json({ error: 'Course not found or invalid code' }, { status: 404 });
   }
+
+  const targetCourseId = course.id;
 
   if (action === 'unenroll') {
     await prisma.enrollment.delete({
       where: {
         userId_courseId: {
           userId: session.user.id,
-          courseId,
+          courseId: targetCourseId,
         },
       },
     });
@@ -36,13 +44,13 @@ export async function POST(request: NextRequest) {
     where: {
       userId_courseId: {
         userId: session.user.id,
-        courseId,
+        courseId: targetCourseId,
       },
     },
     update: { status: 'ACTIVE' },
     create: {
       userId: session.user.id,
-      courseId,
+      courseId: targetCourseId,
       status: 'ACTIVE',
     },
   });

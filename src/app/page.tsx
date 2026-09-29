@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { BookOpen, Brain, Users, FileText, Zap, ArrowRight, Sparkles, Code, Terminal } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function HomePage() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -38,7 +39,8 @@ export default function HomePage() {
         justifyContent: 'space-between', 
         padding: '24px 40px',
         borderBottom: '1px solid rgba(16, 185, 129, 0.3)',
-        background: 'rgba(0, 0, 0, 0.8)',
+        background: 'var(--bg-primary)',
+        opacity: 0.95,
         backdropFilter: 'blur(12px)',
         position: 'sticky',
         top: 0,
@@ -57,7 +59,8 @@ export default function HomePage() {
           <div style={{ width: '12px', height: '12px', background: 'var(--accent-green)', boxShadow: '0 0 10px var(--accent-green)' }}></div>
           RecCourse_
         </div>
-        <div style={{ display: 'flex', gap: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <ThemeToggle />
           <Link href="/login" className="btn btn-ghost" style={{ border: '1px solid transparent', fontWeight: 600 }}>LOGIN</Link>
           <Link href="/register" className="btn" style={{ 
             background: 'var(--accent-green)', 

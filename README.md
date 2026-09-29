@@ -7,9 +7,10 @@ An intelligent course recommendation and academic collaboration platform for stu
 - **User Registration and Authentication**: Students and faculty can register with role selection. Supports Google and GitHub OAuth alongside credential-based login.
 - **Python-Powered Course Recommendation Engine**: Recommends courses to students based on their interests, learning history, difficulty preferences, popularity, and ratings. The core recommendation logic runs on a dedicated Python engine. Logs all recommendations for future tuning.
 - **AI-Generated Learning Paths (Gemini AI)**: Enter a learning goal and let Google's Gemini AI construct a curated step-by-step learning path from the course catalog.
+- **Classroom Management (Google Classroom style)**: Faculty can create private classrooms that generate a unique 6-digit `joinCode`. Students join these classrooms to access the syllabus and receive communications.
+- **Faculty Broadcasts**: Instructors can send broadcasts (announcements, materials, assignments) directly to their classrooms, automatically triggering email notifications for all enrolled students.
 - **Course Ratings and Reviews**: Students can rate courses from 1 to 5 stars.
 - **Kaggle Course Dataset Integration**: Built-in support to seed the database with a large dataset of Udacity/Kaggle courses.
-- **Faculty Course Broadcast Management**: Faculty can create courses, publish them to students, and send broadcasts (announcements, materials, assignments) with email notifications.
 - **AI Research Paper Recommender**: For every course, discovers relevant research papers by querying Semantic Scholar (primary) and arXiv (fallback). Results are cached and logged.
 - **Course and Resource Data Management**: Admin can ingest course updates from external providers via a sync API endpoint.
 - **Admin Oversight**: Full platform management including user roles, course publishing, and broadcast audit logs.
@@ -139,6 +140,11 @@ scripts/
 | GET | /api/courses/[id] | Course detail with enrollment check |
 | PUT | /api/courses/[id] | Update course (owner/admin) |
 | DELETE | /api/courses/[id] | Delete course (admin) |
+| POST | /api/classrooms | Create a classroom (faculty) |
+| GET | /api/classrooms | List user's joined/owned classrooms |
+| GET | /api/classrooms/[id] | Get classroom details |
+| POST | /api/classrooms/join | Join a classroom via joinCode (student) |
+| POST | /api/classrooms/[id]/courses | Add or remove a course from a classroom syllabus |
 | POST | /api/courses/sync | Bulk upsert courses from external provider (admin) |
 | POST | /api/enrollments | Enroll or unenroll from a course |
 | GET | /api/enrollments | List user enrollments |
@@ -148,7 +154,7 @@ scripts/
 | POST | /api/ratings | Rate a course (1-5 stars) |
 | GET | /api/papers?courseId=X | Get research paper recommendations for a course |
 | POST | /api/broadcasts | Create broadcast with email notification |
-| GET | /api/broadcasts?courseId=X | List broadcasts for a course |
+| GET | /api/broadcasts?courseId=X&classroomId=Y | List broadcasts for a course or classroom |
 | POST | /api/users | Register new user |
 | PUT | /api/users | Update user profile and interests |
 | GET | /api/users | Get current user profile |

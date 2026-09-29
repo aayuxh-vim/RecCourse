@@ -92,6 +92,9 @@ model User {
   paperRecommendations PaperRecommendation[]
   learningPaths        LearningPath[]
   ratings              Rating[]
+
+  classrooms           Classroom[]        @relation("FacultyClassrooms")
+  classroomMemberships ClassroomMember[]
 }
 
 model LearningPath {
@@ -125,6 +128,7 @@ model Course {
   courseType     String?
   published     Boolean  @default(false)
   externalId    String?  @unique
+  joinCode      String?  @unique
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -136,6 +140,7 @@ model Course {
   broadcasts           Broadcast[]
   paperRecommendations PaperRecommendation[]
   ratings              Rating[]
+  classrooms           ClassroomCourse[]
 
   @@index([facultyId])
   @@index([category])
@@ -191,18 +196,21 @@ model Rating {
 }
 
 model Broadcast {
-  id        String        @id @default(cuid())
-  courseId   String
-  facultyId String
-  title     String
-  content   String        @db.Text
-  type      BroadcastType @default(ANNOUNCEMENT)
-  createdAt DateTime      @default(now())
+  id          String        @id @default(cuid())
+  courseId    String?
+  classroomId String?
+  facultyId   String
+  title       String
+  content     String        @db.Text
+  type        BroadcastType @default(ANNOUNCEMENT)
+  createdAt   DateTime      @default(now())
 
-  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  faculty User   @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  course      Course?    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  classroom   Classroom? @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  faculty     User       @relation(fields: [facultyId], references: [id], onDelete: Cascade)
 
   @@index([courseId])
+  @@index([classroomId])
   @@index([facultyId])
 }
 
@@ -220,10 +228,55 @@ model PaperRecommendation {
   year          Int?
   createdAt     DateTime    @default(now())
 
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([courseId])
   @@index([paperId])
+}
+
+model Classroom {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  joinCode    String   @unique
+  facultyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  faculty     User               @relation("FacultyClassrooms", fields: [facultyId], references: [id], onDelete: Cascade)
+  members     ClassroomMember[]
+  courses     ClassroomCourse[]
+  broadcasts  Broadcast[]
+
+  @@index([facultyId])
+}
+
+model ClassroomMember {
+  id          String   @id @default(cuid())
+  userId      String
+  classroomId String
+  joinedAt    DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, classroomId])
+  @@index([userId])
+  @@index([classroomId])
+}
+
+model ClassroomCourse {
+  id          String   @id @default(cuid())
+  classroomId String
+  courseId    String
+  addedAt     DateTime @default(now())
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([classroomId, courseId])
+  @@index([classroomId])
+  @@index([courseId])
 }

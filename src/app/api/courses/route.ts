@@ -27,7 +27,21 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '12');
 
-  const where: Record<string, unknown> = { published: true };
+  const session = await auth();
+  const user = session?.user;
+
+  let where: Record<string, unknown> = { published: true };
+
+  // If the user is fetching their own courses (like from the faculty dashboard), we can optionally allow an override
+  // But actually, we can just say if 'facultyId' is passed, we filter by that.
+  const facultyId = searchParams.get('facultyId');
+  if (facultyId) {
+    if (user?.role === 'ADMIN' || user?.id === facultyId) {
+      where = { facultyId };
+    } else {
+      where = { facultyId, published: true };
+    }
+  }
 
   if (category) {
     where.category = category;
@@ -46,7 +60,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         faculty: { select: { id: true, name: true, image: true } },
-        _count: { select: { enrollments: true } },
+        _count: { select: { enrollments: true, broadcasts: true } },
       },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
@@ -88,10 +102,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Generate a random 6-character alphanumeric code
+  const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
   const course = await prisma.course.create({
     data: {
       ...parsed.data,
       facultyId: user.id,
+      joinCode,
     },
   });
 
