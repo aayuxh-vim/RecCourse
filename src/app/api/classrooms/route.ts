@@ -6,6 +6,7 @@ import { z } from 'zod';
 const classroomSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
+  meetLink: z.string().url().optional().or(z.literal('')).nullable(),
 });
 
 export async function GET(request: NextRequest) {
@@ -62,17 +63,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid data', details: parsed.error.flatten() }, { status: 400 });
   }
 
-  // Generate a 6-character unique join code
-  const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+  // Generate a 6-character unique join code with retry
+  let classroom = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    try {
+      classroom = await prisma.classroom.create({
+        data: {
+          name: parsed.data.name,
+          description: parsed.data.description,
+          meetLink: parsed.data.meetLink || null,
+          joinCode,
+          facultyId: user.id,
+        },
+      });
+      break;
+    } catch (err: any) {
+      if (err?.code === 'P2002' && attempt < 4) continue;
+      throw err;
+    }
+  }
 
-  const classroom = await prisma.classroom.create({
-    data: {
-      name: parsed.data.name,
-      description: parsed.data.description,
-      joinCode,
-      facultyId: user.id,
-    },
-  });
+  if (!classroom) {
+    return NextResponse.json({ error: 'Failed to generate unique classroom code' }, { status: 500 });
+  }
 
   return NextResponse.json(classroom, { status: 201 });
 }

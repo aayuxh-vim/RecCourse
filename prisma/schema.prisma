@@ -80,6 +80,9 @@ model User {
   role          Role      @default(STUDENT)
   interests     String[]  @default([])
   bio           String?
+  streak        Int       @default(0)
+  longestStreak Int       @default(0)
+  lastLoginDate DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -126,6 +129,7 @@ model Course {
   reviewCount   Int?
   prerequisites String?
   courseType     String?
+  meetLink      String?
   published     Boolean  @default(false)
   externalId    String?  @unique
   joinCode      String?  @unique
@@ -241,6 +245,7 @@ model Classroom {
   name        String
   description String?  @db.Text
   joinCode    String   @unique
+  meetLink    String?
   facultyId   String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

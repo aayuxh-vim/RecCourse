@@ -13,6 +13,7 @@ export default function NewClassroomPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    meetLink: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,7 +33,7 @@ export default function NewClassroomPage() {
         throw new Error(data.error || 'Failed to create classroom');
       }
 
-      router.push('/faculty');
+      router.push('/faculty/classrooms');
       router.refresh();
     } catch (err: any) {
       setError(err.message);
@@ -42,8 +43,8 @@ export default function NewClassroomPage() {
 
   return (
     <div className="container" style={{ maxWidth: '800px', padding: '40px 24px' }}>
-      <Link href="/faculty" className="btn btn-ghost" style={{ padding: 0, marginBottom: '24px', color: 'var(--text-muted)' }}>
-        <ArrowLeft size={16} /> Back to Dashboard
+      <Link href="/faculty/classrooms" className="btn btn-ghost" style={{ padding: 0, marginBottom: '24px', color: 'var(--text-muted)' }}>
+        <ArrowLeft size={16} /> Back to My Classrooms
       </Link>
 
       <h1 className="page-title">Create Classroom</h1>
@@ -80,8 +81,22 @@ export default function NewClassroomPage() {
           />
         </div>
 
+        <div className="form-group">
+          <label className="label">Live Meeting Link (Optional — Google Meet, Zoom, etc.)</label>
+          <input
+            type="url"
+            className="input"
+            value={formData.meetLink}
+            onChange={(e) => setFormData({ ...formData, meetLink: e.target.value })}
+            placeholder="https://meet.google.com/abc-defg-hij"
+          />
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+            Set a default live lecture meeting link for enrolled students in this classroom cohort.
+          </p>
+        </div>
+
         <div className="flex justify-between items-center" style={{ marginTop: '32px' }}>
-          <Link href="/faculty" className="btn btn-ghost">Cancel</Link>
+          <Link href="/faculty/classrooms" className="btn btn-ghost">Cancel</Link>
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             Create Classroom

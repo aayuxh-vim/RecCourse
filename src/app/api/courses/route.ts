@@ -17,6 +17,7 @@ const courseSchema = z.object({
   reviewCount: z.number().optional(),
   prerequisites: z.string().optional(),
   courseType: z.string().optional(),
+  meetLink: z.string().url().optional().or(z.literal('')),
   published: z.boolean().default(false),
 });
 
@@ -35,7 +36,11 @@ export async function GET(request: NextRequest) {
   // If the user is fetching their own courses (like from the faculty dashboard), we can optionally allow an override
   // But actually, we can just say if 'facultyId' is passed, we filter by that.
   const facultyId = searchParams.get('facultyId');
-  if (facultyId) {
+  const mine = searchParams.get('mine');
+
+  if (mine === 'true' && user?.id) {
+    where = { facultyId: user.id };
+  } else if (facultyId) {
     if (user?.role === 'ADMIN' || user?.id === facultyId) {
       where = { facultyId };
     } else {
@@ -102,16 +107,29 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Generate a random 6-character alphanumeric code
-  const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+  // Generate a random 6-character alphanumeric code with collision retry
+  let course = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    try {
+      course = await prisma.course.create({
+        data: {
+          ...parsed.data,
+          courseUrl: parsed.data.courseUrl || null,
+          facultyId: user.id,
+          joinCode,
+        },
+      });
+      break;
+    } catch (err: any) {
+      if (err?.code === 'P2002' && attempt < 4) continue;
+      throw err;
+    }
+  }
 
-  const course = await prisma.course.create({
-    data: {
-      ...parsed.data,
-      facultyId: user.id,
-      joinCode,
-    },
-  });
+  if (!course) {
+    return NextResponse.json({ error: 'Failed to generate unique join code. Please try again.' }, { status: 500 });
+  }
 
   return NextResponse.json(course, { status: 201 });
 }

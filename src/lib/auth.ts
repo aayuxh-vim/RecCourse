@@ -26,6 +26,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
+        role: { label: 'Role', type: 'text' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
@@ -46,6 +47,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         );
 
         if (!isValid) {
+          return null;
+        }
+
+        // Server-side role enforcement: reject login if role mismatches
+        if (credentials.role && user.role !== 'ADMIN' && user.role !== credentials.role) {
           return null;
         }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { z } from 'zod';
 
 export async function GET(
   request: NextRequest,
@@ -30,6 +31,7 @@ export async function GET(
   // Check if current user is enrolled
   const session = await auth();
   let isEnrolled = false;
+  let enrollmentStatus: string | null = null;
   if (session?.user) {
     const enrollment = await prisma.enrollment.findUnique({
       where: {
@@ -40,9 +42,10 @@ export async function GET(
       },
     });
     isEnrolled = !!enrollment;
+    enrollmentStatus = enrollment?.status || null;
   }
 
-  return NextResponse.json({ ...course, isEnrolled });
+  return NextResponse.json({ ...course, isEnrolled, enrollmentStatus });
 }
 
 export async function PUT(
@@ -73,9 +76,32 @@ export async function PUT(
   }
 
   const body = await request.json();
+  const updateSchema = z.object({
+    title: z.string().min(1).optional(),
+    description: z.string().min(1).optional(),
+    category: z.string().min(1).optional(),
+    tags: z.array(z.string()).optional(),
+    difficulty: z.string().optional(),
+    syllabusUrl: z.string().nullable().optional(),
+    courseUrl: z.string().nullable().optional(),
+    imageUrl: z.string().nullable().optional(),
+    duration: z.string().nullable().optional(),
+    prerequisites: z.string().nullable().optional(),
+    courseType: z.string().nullable().optional(),
+    published: z.boolean().optional(),
+  });
+
+  const parsed = updateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Invalid data', details: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+
   const updated = await prisma.course.update({
     where: { id },
-    data: body,
+    data: parsed.data,
   });
 
   return NextResponse.json(updated);

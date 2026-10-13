@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { BookOpen, Users, ExternalLink, FileText, Star, Clock, Award, ArrowUpRight } from 'lucide-react';
+import { BookOpen, Users, ExternalLink, FileText, Star, Clock, Award, ArrowUpRight, CheckCircle } from 'lucide-react';
 
 interface CourseDetail {
   id: string;
@@ -20,6 +20,7 @@ interface CourseDetail {
   prerequisites: string | null;
   published: boolean;
   isEnrolled: boolean;
+  enrollmentStatus?: string | null;
   faculty: { id: string; name: string; bio: string | null } | null;
   broadcasts: Array<{
     id: string;
@@ -89,6 +90,27 @@ export default function CourseDetailPage() {
     setEnrolling(false);
   }
 
+  async function handleToggleCompletion() {
+    if (!course) return;
+    const isCompleted = course.enrollmentStatus === 'COMPLETED';
+    const action = isCompleted ? 'resume' : 'complete';
+    const res = await fetch('/api/enrollments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId, action }),
+    });
+    if (res.ok) {
+      setCourse((prev) =>
+        prev
+          ? {
+              ...prev,
+              enrollmentStatus: action === 'complete' ? 'COMPLETED' : 'ACTIVE',
+            }
+          : null
+      );
+    }
+  }
+
   useEffect(() => {
     if (activeTab === 'papers') {
       loadPapers();
@@ -122,6 +144,11 @@ export default function CourseDetailPage() {
                 {course.courseType}
               </span>
             )}
+            {course.isEnrolled && (
+              <span className={`badge ${course.enrollmentStatus === 'COMPLETED' ? 'badge-green' : 'badge-violet'}`}>
+                {course.enrollmentStatus === 'COMPLETED' ? '✓ Completed' : 'In Progress'}
+              </span>
+            )}
           </div>
           <h1 className="page-title">{course.title}</h1>
           <p className="page-subtitle">
@@ -139,6 +166,22 @@ export default function CourseDetailPage() {
             >
               Go to Course <ArrowUpRight size={16} />
             </a>
+          )}
+          {course.isEnrolled && (
+            <button
+              className="btn btn-secondary"
+              onClick={handleToggleCompletion}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderColor: course.enrollmentStatus === 'COMPLETED' ? 'var(--border-primary)' : '#10b981',
+                color: course.enrollmentStatus === 'COMPLETED' ? 'var(--text-secondary)' : '#10b981',
+              }}
+            >
+              <CheckCircle size={15} />
+              {course.enrollmentStatus === 'COMPLETED' ? 'Mark as In Progress' : 'Mark as Completed'}
+            </button>
           )}
           <button
             className={`btn ${course.isEnrolled ? 'btn-danger' : 'btn-secondary'}`}

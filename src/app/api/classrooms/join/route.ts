@@ -19,6 +19,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Classroom not found or invalid code' }, { status: 404 });
   }
 
+  // Check if user is the faculty owner
+  if (classroom.facultyId === session.user.id) {
+    return NextResponse.json({ error: 'You are the faculty owner of this classroom' }, { status: 400 });
+  }
+
   // Check if already joined
   const existing = await prisma.classroomMember.findUnique({
     where: {
@@ -41,4 +46,35 @@ export async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ joined: true, classroom }, { status: 201 });
+}
+
+export async function DELETE(request: NextRequest) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const classroomId = searchParams.get('classroomId');
+
+  if (!classroomId) {
+    return NextResponse.json({ error: 'classroomId required' }, { status: 400 });
+  }
+
+  try {
+    await prisma.classroomMember.delete({
+      where: {
+        userId_classroomId: {
+          userId: session.user.id,
+          classroomId,
+        },
+      },
+    });
+    return NextResponse.json({ success: true, left: true });
+  } catch (err: any) {
+    if (err?.code === 'P2025') {
+      return NextResponse.json({ message: 'Not a member of this classroom' }, { status: 200 });
+    }
+    throw err;
+  }
 }

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Users, Send } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, Users, Send, Globe, ExternalLink, Save, CheckCircle } from 'lucide-react';
 
 interface CourseDetail {
   id: string;
@@ -12,6 +13,9 @@ interface CourseDetail {
   difficulty: string;
   tags: string[];
   published: boolean;
+  courseUrl: string | null;
+  syllabusUrl: string | null;
+  joinCode?: string;
   broadcasts: Array<{
     id: string;
     title: string;
@@ -36,10 +40,19 @@ export default function FacultyCourseDetailPage() {
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState('');
 
+  // Course URL state
+  const [courseUrlInput, setCourseUrlInput] = useState('');
+  const [savingCourseUrl, setSavingCourseUrl] = useState(false);
+  const [courseUrlSuccess, setCourseUrlSuccess] = useState(false);
+
   useEffect(() => {
     async function load() {
       const res = await fetch(`/api/courses/${courseId}`);
-      if (res.ok) setCourse(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setCourse(data);
+        setCourseUrlInput(data.courseUrl || '');
+      }
       setLoading(false);
     }
     load();
@@ -76,6 +89,26 @@ export default function FacultyCourseDetailPage() {
     setSending(false);
   }
 
+  async function handleUpdateCourseUrl(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingCourseUrl(true);
+    setCourseUrlSuccess(false);
+
+    const res = await fetch(`/api/courses/${courseId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseUrl: courseUrlInput.trim() || null }),
+    });
+
+    if (res.ok) {
+      const updated = await res.json();
+      setCourse((prev) => (prev ? { ...prev, courseUrl: updated.courseUrl } : null));
+      setCourseUrlSuccess(true);
+      setTimeout(() => setCourseUrlSuccess(false), 4000);
+    }
+    setSavingCourseUrl(false);
+  }
+
   async function togglePublish() {
     if (!course) return;
     const res = await fetch(`/api/courses/${courseId}`, {
@@ -84,7 +117,7 @@ export default function FacultyCourseDetailPage() {
       body: JSON.stringify({ published: !course.published }),
     });
     if (res.ok) {
-      setCourse((prev) => prev ? { ...prev, published: !prev.published } : null);
+      setCourse((prev) => (prev ? { ...prev, published: !prev.published } : null));
     }
   }
 
@@ -103,6 +136,14 @@ export default function FacultyCourseDetailPage() {
 
   return (
     <div>
+      <Link
+        href="/faculty/courses"
+        className="btn btn-ghost"
+        style={{ padding: 0, marginBottom: '24px', color: 'var(--text-muted)' }}
+      >
+        <ArrowLeft size={16} /> Back to My Courses
+      </Link>
+
       <div className="flex items-center justify-between" style={{ marginBottom: '32px' }}>
         <div>
           <span className="badge badge-cyan" style={{ marginBottom: '8px', display: 'inline-block' }}>
@@ -117,11 +158,75 @@ export default function FacultyCourseDetailPage() {
               <Users size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
               {course._count.enrollments} students
             </span>
+            {course.joinCode && (
+              <span className="badge badge-violet">
+                Join Code: {course.joinCode}
+              </span>
+            )}
           </div>
         </div>
         <button className="btn btn-secondary" onClick={togglePublish}>
           {course.published ? 'Unpublish' : 'Publish'}
         </button>
+      </div>
+
+      {/* Course Website Link Section */}
+      <div className="card" style={{ marginBottom: '32px', borderLeft: '4px solid var(--accent-cyan)' }}>
+        <div className="flex items-center justify-between" style={{ marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+          <div className="flex items-center gap-3">
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '8px',
+                background: 'rgba(6, 182, 212, 0.15)',
+                color: 'var(--accent-cyan)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Globe size={20} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: '600' }}>Course Website Link</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                Set the destination website URL for this course (e.g. Udacity, Coursera, or custom course site). Students will be redirected here.
+              </p>
+            </div>
+          </div>
+          {course.courseUrl && (
+            <a
+              href={course.courseUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary btn-sm flex items-center gap-1"
+            >
+              Visit Course Site <ExternalLink size={14} />
+            </a>
+          )}
+        </div>
+
+        <form onSubmit={handleUpdateCourseUrl} className="flex gap-3 items-center" style={{ flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '260px' }}>
+            <input
+              type="url"
+              className="input"
+              placeholder="https://www.udacity.com/course/..."
+              value={courseUrlInput}
+              onChange={(e) => setCourseUrlInput(e.target.value)}
+            />
+          </div>
+          <button type="submit" className="btn btn-primary" disabled={savingCourseUrl}>
+            <Save size={14} />
+            {savingCourseUrl ? 'Saving...' : 'Save Course Link'}
+          </button>
+          {courseUrlSuccess && (
+            <span className="badge badge-green flex items-center gap-1">
+              <CheckCircle size={14} /> Updated!
+            </span>
+          )}
+        </form>
       </div>
 
       <div className="grid grid-2" style={{ gap: '32px' }}>

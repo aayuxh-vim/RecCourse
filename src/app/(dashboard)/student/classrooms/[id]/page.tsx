@@ -1,16 +1,31 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, BookOpen, Megaphone } from 'lucide-react';
+import { ArrowLeft, BookOpen, Megaphone, Video, LogOut } from 'lucide-react';
 
 export default function StudentClassroomViewPage() {
-  const pathname = usePathname();
-  const id = pathname.split('/').pop();
+  const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
   
   const [classroom, setClassroom] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [leaving, setLeaving] = useState(false);
+
+  async function handleLeave() {
+    if (!confirm('Are you sure you want to leave this classroom?')) return;
+    setLeaving(true);
+    const res = await fetch(`/api/classrooms/join?classroomId=${id}`, {
+      method: 'DELETE',
+    });
+    if (res.ok) {
+      router.push('/student/enrolled');
+    } else {
+      setLeaving(false);
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -48,12 +63,69 @@ export default function StudentClassroomViewPage() {
         <ArrowLeft size={16} /> Back to My Classrooms
       </Link>
 
-      <div className="flex items-center justify-between" style={{ marginBottom: '32px' }}>
+      <div className="flex items-center justify-between" style={{ marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 className="page-title">{classroom.name}</h1>
-          <p className="page-subtitle">Instructor: {classroom.faculty.name || 'TBD'}</p>
+          <p className="page-subtitle">Instructor: {classroom.faculty?.name || 'TBD'}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {classroom.meetLink && (
+            <a
+              href={classroom.meetLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-primary flex items-center gap-2"
+            >
+              <Video size={16} /> Join Live Meeting
+            </a>
+          )}
+          <button
+            onClick={handleLeave}
+            disabled={leaving}
+            className="btn btn-ghost flex items-center gap-2"
+            style={{ color: 'var(--accent-red)' }}
+          >
+            <LogOut size={16} /> {leaving ? 'Leaving...' : 'Leave Classroom'}
+          </button>
         </div>
       </div>
+
+      {classroom.meetLink && (
+        <div className="card" style={{ marginBottom: '32px', borderLeft: '4px solid var(--accent-violet)', background: 'rgba(99, 102, 241, 0.05)' }}>
+          <div className="flex items-center justify-between" style={{ flexWrap: 'wrap', gap: '12px' }}>
+            <div className="flex items-center gap-3">
+              <div
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '8px',
+                  background: 'rgba(99, 102, 241, 0.15)',
+                  color: 'var(--accent-violet)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Video size={20} />
+              </div>
+              <div>
+                <h4 style={{ fontSize: '15px', fontWeight: '600' }}>Live Class Meeting Session</h4>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  Your instructor has scheduled a Google Meet / live conference link for this cohort.
+                </p>
+              </div>
+            </div>
+            <a
+              href={classroom.meetLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary btn-sm flex items-center gap-1"
+            >
+              Enter Meeting <Video size={14} />
+            </a>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-2" style={{ gap: '32px' }}>
         

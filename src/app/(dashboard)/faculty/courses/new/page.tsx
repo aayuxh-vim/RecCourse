@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 
 const CATEGORIES = [
   'Computer Science', 'Mathematics', 'Physics', 'Biology', 'Chemistry',
@@ -20,6 +22,7 @@ export default function CreateCoursePage() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [syllabusUrl, setSyllabusUrl] = useState('');
+  const [courseUrl, setCourseUrl] = useState('');
   const [published, setPublished] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -58,6 +61,7 @@ export default function CreateCoursePage() {
         difficulty,
         tags,
         syllabusUrl: syllabusUrl || undefined,
+        courseUrl: courseUrl || undefined,
         published,
       }),
     });
@@ -75,6 +79,10 @@ export default function CreateCoursePage() {
 
   return (
     <div style={{ maxWidth: '640px' }}>
+      <Link href="/faculty/courses" className="btn btn-ghost" style={{ padding: 0, marginBottom: '24px', color: 'var(--text-muted)' }}>
+        <ArrowLeft size={16} /> Back to My Courses
+      </Link>
+
       <div className="page-header">
         <h1 className="page-title">Create Course</h1>
         <p className="page-subtitle">Set up a new course for your students</p>
@@ -170,6 +178,21 @@ export default function CreateCoursePage() {
         </div>
 
         <div className="form-group">
+          <label htmlFor="course-url" className="label">Course Website Link (URL)</label>
+          <input
+            id="course-url"
+            type="url"
+            className="input"
+            placeholder="https://www.udacity.com/course/... or external course platform link"
+            value={courseUrl}
+            onChange={(e) => setCourseUrl(e.target.value)}
+          />
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+            When students click &quot;Go to Course&quot;, they will be redirected to this site.
+          </p>
+        </div>
+
+        <div className="form-group">
           <label className="flex items-center gap-3" style={{ cursor: 'pointer' }}>
             <input
               type="checkbox"
@@ -192,7 +215,7 @@ export default function CreateCoursePage() {
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => router.back()}
+            onClick={() => router.push('/faculty/courses')}
           >
             Cancel
           </button>

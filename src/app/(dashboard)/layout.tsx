@@ -1,7 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { SessionProvider } from 'next-auth/react';
 import {
@@ -13,9 +14,21 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session } = useSession();
   const role = session?.user?.role;
   const userName = session?.user?.name || 'User';
+
+  useEffect(() => {
+    if (!role) return;
+    if (role === 'FACULTY' && pathname === '/student') {
+      router.replace('/faculty');
+    } else if (role === 'STUDENT' && pathname.startsWith('/faculty')) {
+      router.replace('/student');
+    } else if (role !== 'ADMIN' && pathname.startsWith('/admin')) {
+      router.replace(role === 'FACULTY' ? '/faculty' : '/student');
+    }
+  }, [role, pathname, router]);
 
   const studentLinks = [
     { href: '/student', label: 'Dashboard', icon: LayoutDashboard },
@@ -26,9 +39,9 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
   const facultyLinks = [
     { href: '/faculty', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/student/courses', label: 'Course Catalog', icon: GraduationCap },
     { href: '/faculty/courses', label: 'My Courses', icon: BookOpen },
-    { href: '/faculty/classrooms/new', label: 'Create Classroom', icon: PlusCircle },
-    { href: '/faculty/courses/new', label: 'Create Course', icon: PlusCircle },
+    { href: '/faculty/classrooms', label: 'My Classrooms', icon: Users },
   ];
 
   const adminLinks = [
@@ -75,9 +88,12 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
           <div style={{ flex: 1 }} />
-          <Link href="/student" className="sidebar-link">
+          <Link
+            href={role === 'FACULTY' ? '/faculty' : role === 'ADMIN' ? '/admin' : '/student'}
+            className="sidebar-link"
+          >
             <Settings size={18} />
-            Settings
+            Overview & Settings
           </Link>
         </aside>
         <main className="dashboard-content">

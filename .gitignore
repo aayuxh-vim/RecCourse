@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local test reports
+RecCourse_Testing_Assignment.pdf
+RecCourse_Testing_Handwritten_Guide.md

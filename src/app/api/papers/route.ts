@@ -50,6 +50,11 @@ export async function GET(request: NextRequest) {
     course.category
   );
 
+  // Clean up expired cache entries for this user and course to avoid duplicates
+  await prisma.paperRecommendation.deleteMany({
+    where: { userId: session.user.id, courseId },
+  });
+
   // Store results
   const stored = [];
   for (const paper of papers) {

@@ -9,7 +9,8 @@ interface Broadcast {
   type: string;
   createdAt: string;
   faculty: { name: string; image: string | null };
-  course: { title: string };
+  course?: { title: string } | null;
+  classroom?: { name: string } | null;
 }
 
 export default function AdminBroadcastsPage() {
@@ -17,37 +18,19 @@ export default function AdminBroadcastsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Note: For admin, we need a different endpoint that lists ALL broadcasts
-    // For now, we show a message. In production, add an admin broadcasts API.
     async function load() {
-      // Fetch broadcasts from all courses
-      const coursesRes = await fetch('/api/courses?limit=100');
-      if (!coursesRes.ok) {
-        setLoading(false);
-        return;
-      }
-      const coursesData = await coursesRes.json();
-      const allBroadcasts: Broadcast[] = [];
-
-      for (const course of coursesData.courses.slice(0, 10)) {
-        const bcRes = await fetch(`/api/broadcasts?courseId=${course.id}`);
-        if (bcRes.ok) {
-          const bcs = await bcRes.json();
-          allBroadcasts.push(
-            ...bcs.map((bc: Broadcast) => ({
-              ...bc,
-              course: { title: course.title },
-            }))
-          );
+      setLoading(true);
+      try {
+        const res = await fetch('/api/broadcasts?all=true');
+        if (res.ok) {
+          const data = await res.json();
+          setBroadcasts(data);
         }
+      } catch (err) {
+        console.error('Failed to load broadcasts:', err);
+      } finally {
+        setLoading(false);
       }
-
-      allBroadcasts.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      setBroadcasts(allBroadcasts);
-      setLoading(false);
     }
     load();
   }, []);
@@ -56,7 +39,7 @@ export default function AdminBroadcastsPage() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Broadcast Audit Log</h1>
-        <p className="page-subtitle">All broadcasts across the platform</p>
+        <p className="page-subtitle">All announcements and broadcasts dispatched across the platform</p>
       </div>
 
       {loading ? (
@@ -73,7 +56,7 @@ export default function AdminBroadcastsPage() {
               <tr>
                 <th>Title</th>
                 <th>Type</th>
-                <th>Course</th>
+                <th>Destination</th>
                 <th>Faculty</th>
                 <th>Date</th>
               </tr>
@@ -96,7 +79,11 @@ export default function AdminBroadcastsPage() {
                     </span>
                   </td>
                   <td style={{ color: 'var(--text-secondary)' }}>
-                    {bc.course?.title || 'Unknown'}
+                    {bc.course?.title
+                      ? `Course: ${bc.course.title}`
+                      : bc.classroom?.name
+                      ? `Classroom: ${bc.classroom.name}`
+                      : 'Global'}
                   </td>
                   <td style={{ color: 'var(--text-secondary)' }}>
                     {bc.faculty?.name || 'Unknown'}

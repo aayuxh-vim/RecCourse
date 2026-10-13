@@ -28,15 +28,59 @@ export async function POST(request: NextRequest) {
   const targetCourseId = course.id;
 
   if (action === 'unenroll') {
-    await prisma.enrollment.delete({
-      where: {
-        userId_courseId: {
-          userId: session.user.id,
-          courseId: targetCourseId,
+    try {
+      await prisma.enrollment.delete({
+        where: {
+          userId_courseId: {
+            userId: session.user.id,
+            courseId: targetCourseId,
+          },
         },
-      },
-    });
+      });
+    } catch (err: any) {
+      if (err?.code !== 'P2025') throw err;
+    }
     return NextResponse.json({ enrolled: false });
+  }
+
+  if (action === 'complete') {
+    try {
+      const updated = await prisma.enrollment.update({
+        where: {
+          userId_courseId: {
+            userId: session.user.id,
+            courseId: targetCourseId,
+          },
+        },
+        data: { status: 'COMPLETED' },
+      });
+      return NextResponse.json({ success: true, enrollment: updated });
+    } catch (err: any) {
+      if (err?.code === 'P2025') {
+        return NextResponse.json({ error: 'You are not enrolled in this course' }, { status: 400 });
+      }
+      throw err;
+    }
+  }
+
+  if (action === 'resume' || action === 'active') {
+    try {
+      const updated = await prisma.enrollment.update({
+        where: {
+          userId_courseId: {
+            userId: session.user.id,
+            courseId: targetCourseId,
+          },
+        },
+        data: { status: 'ACTIVE' },
+      });
+      return NextResponse.json({ success: true, enrollment: updated });
+    } catch (err: any) {
+      if (err?.code === 'P2025') {
+        return NextResponse.json({ error: 'You are not enrolled in this course' }, { status: 400 });
+      }
+      throw err;
+    }
   }
 
   // Enroll

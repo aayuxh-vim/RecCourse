@@ -131,16 +131,20 @@ export async function GET(request: NextRequest) {
     reason: item.reason,
   })).filter((item: any) => item.course != null);
 
-  // Store Recommendation log entry (user, timestamp, resource IDs, algorithm version)
-  for (const item of scored) {
-    await prisma.recommendation.create({
-      data: {
+  // Clean up previous snapshot for this user to avoid database row accumulation
+  await prisma.recommendation.deleteMany({
+    where: { userId: user.id },
+  });
+
+  if (scored.length > 0) {
+    await prisma.recommendation.createMany({
+      data: scored.map((item: any) => ({
         userId: user.id,
         courseId: item.course.id,
         score: item.score,
         reason: item.reason,
         algorithmVersion,
-      },
+      })),
     });
   }
 

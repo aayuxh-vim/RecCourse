@@ -204,16 +204,63 @@ async function main() {
   const studentPassword = await hash('student123', 12);
   const student = await prisma.user.upsert({
     where: { email: 'student@reccourse.dev' },
-    update: {},
+    update: {
+      streak: 5,
+      longestStreak: 7,
+      lastLoginDate: new Date(),
+    },
     create: {
       name: 'Alex Johnson',
       email: 'student@reccourse.dev',
       password: studentPassword,
       role: Role.STUDENT,
+      streak: 5,
+      longestStreak: 7,
+      lastLoginDate: new Date(),
       interests: ['machine learning', 'data science', 'python', 'web development'],
     },
   });
-  console.log('✅ Student user:', student.email);
+  console.log('✅ Student user (active with mock streak & courses):', student.email);
+
+  const demoStudent = await prisma.user.upsert({
+    where: { email: 'demo@reccourse.dev' },
+    update: {
+      streak: 12,
+      longestStreak: 15,
+      lastLoginDate: new Date(),
+    },
+    create: {
+      name: 'Jordan Lee',
+      email: 'demo@reccourse.dev',
+      password: studentPassword,
+      role: Role.STUDENT,
+      streak: 12,
+      longestStreak: 15,
+      lastLoginDate: new Date(),
+      interests: ['cloud', 'cybersecurity', 'devops'],
+    },
+  });
+  console.log('✅ Demo Student (advanced mock learner):', demoStudent.email);
+
+  const newStudent = await prisma.user.upsert({
+    where: { email: 'newstudent@reccourse.dev' },
+    update: {
+      streak: 0,
+      longestStreak: 0,
+      lastLoginDate: null,
+    },
+    create: {
+      name: 'Maya Patel',
+      email: 'newstudent@reccourse.dev',
+      password: studentPassword,
+      role: Role.STUDENT,
+      streak: 0,
+      longestStreak: 0,
+      lastLoginDate: null,
+      interests: ['web development'],
+    },
+  });
+  console.log('✅ Fresh New Student (0 streak, 0 courses):', newStudent.email);
 
   // ─── Load CSV ─────────────────────────────────────────────────────────
   const csvPath = path.join(__dirname, 'all_courses.csv');
@@ -305,8 +352,8 @@ async function main() {
   console.log(`📁 Categories: ${[...categories].sort().join(', ')}\n`);
 
   // ─── Enroll sample student in a few courses ──────────────────────────
-  const courses = await prisma.course.findMany({ take: 3 });
-  for (const course of courses) {
+  const courses = await prisma.course.findMany({ take: 6 });
+  for (const course of courses.slice(0, 3)) {
     await prisma.enrollment.upsert({
       where: {
         userId_courseId: {
@@ -322,7 +369,90 @@ async function main() {
       },
     });
   }
-  console.log('✅ Enrolled sample student in 3 courses');
+  console.log('✅ Enrolled sample student Alex in 3 courses');
+
+  for (const course of courses.slice(1, 6)) {
+    await prisma.enrollment.upsert({
+      where: {
+        userId_courseId: {
+          userId: demoStudent.id,
+          courseId: course.id,
+        },
+      },
+      update: {},
+      create: {
+        userId: demoStudent.id,
+        courseId: course.id,
+        status: 'ACTIVE',
+      },
+    });
+  }
+  console.log('✅ Enrolled demo student Jordan in 5 courses');
+
+  // ─── Create a sample course with Course Link for faculty ─────────────
+  const sampleCourse = await prisma.course.upsert({
+    where: { externalId: 'faculty-live-advanced-ai' },
+    update: {
+      courseUrl: 'https://www.udacity.com/course/deep-learning-nanodegree--nd101',
+    },
+    create: {
+      title: 'Advanced AI Systems & Large Language Models',
+      description: 'Interactive deep learning curriculum exploring neural networks, transformer architectures, and real-time agent orchestration.',
+      category: 'Machine Learning & AI',
+      tags: ['ai', 'transformers', 'llm', 'deep learning'],
+      difficulty: 'Advanced',
+      externalId: 'faculty-live-advanced-ai',
+      courseUrl: 'https://www.udacity.com/course/deep-learning-nanodegree--nd101',
+      published: true,
+      facultyId: faculty.id,
+    },
+  });
+  console.log('✅ Created sample Faculty course with Course Website Link');
+
+  // ─── Create a sample Classroom with Google Meet link for faculty ─────
+  const sampleClassroom = await prisma.classroom.upsert({
+    where: { joinCode: 'CLASS26' },
+    update: {
+      meetLink: 'https://meet.google.com/abc-defg-hij',
+    },
+    create: {
+      name: 'CS401: Advanced AI & Machine Learning Lab',
+      description: 'Weekly live seminar and project cohort. Live class lecture hosted via Google Meet.',
+      joinCode: 'CLASS26',
+      meetLink: 'https://meet.google.com/abc-defg-hij',
+      facultyId: faculty.id,
+    },
+  });
+
+  // Link student and course to classroom
+  await prisma.classroomCourse.upsert({
+    where: {
+      classroomId_courseId: {
+        classroomId: sampleClassroom.id,
+        courseId: sampleCourse.id,
+      },
+    },
+    update: {},
+    create: {
+      classroomId: sampleClassroom.id,
+      courseId: sampleCourse.id,
+    },
+  });
+
+  await prisma.classroomMember.upsert({
+    where: {
+      userId_classroomId: {
+        userId: student.id,
+        classroomId: sampleClassroom.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: student.id,
+      classroomId: sampleClassroom.id,
+    },
+  });
+  console.log('✅ Created sample Faculty Classroom with Google Meet link and enrolled student');
 
   console.log('\n🎉 Seeding complete!');
 }

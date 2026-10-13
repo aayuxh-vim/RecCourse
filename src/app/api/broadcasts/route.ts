@@ -96,6 +96,23 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const courseId = searchParams.get('courseId');
   const classroomId = searchParams.get('classroomId');
+  const all = searchParams.get('all');
+
+  if (all === 'true') {
+    if (session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const allBroadcasts = await prisma.broadcast.findMany({
+      include: {
+        faculty: { select: { name: true, image: true } },
+        course: { select: { title: true } },
+        classroom: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    return NextResponse.json(allBroadcasts);
+  }
 
   if (!courseId && !classroomId) {
     return NextResponse.json(
@@ -110,6 +127,8 @@ export async function GET(request: NextRequest) {
     where,
     include: {
       faculty: { select: { name: true, image: true } },
+      course: { select: { title: true } },
+      classroom: { select: { name: true } },
     },
     orderBy: { createdAt: 'desc' },
   });
